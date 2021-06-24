@@ -1,0 +1,160 @@
+esphome:
+  name: lockout-backdoor
+  platform: ESP8266
+  board: nodemcu
+  on_boot:
+    then:
+      - script.execute: turn_off
+api: null
+wifi:
+  ssid: ARMembers
+  password: MemberzOnlyFoo
+  ap:
+    ssid: lockout-backdoor-fallback
+    password: MemberzOnlyFoo
+  use_address: 10.42.10.183
+globals:
+  - id: lockout_name
+    type: std::string
+    restore_value: no
+    initial_value: '"backdoor"'
+  - id: allowed_card_ids
+    type: std::vector<std::string>
+    restore_value: no
+    initial_value: '{ "617b4", "617b5", "617b1", "617A5", "710356", "617A4",
+      "71035B", "E21EB2", "617A9", "617b6", "617d0", "e12a2", " 617d3",
+      "2ad2dd", "617AD", "710381", "3b2add97", "9249382", "710353", "710366",
+      "55A5E0", "71035C", "617a3", "617cf", "71036D", "b3125", "617b6",
+      "71035A", "71037E" }'
+  - id: allowed_names
+    type: std::vector<std::string>
+    restore_value: no
+    initial_value: '{ "Matthew Biegacki", "Barret Ferm", "Jacob Francois", "Joshua
+      Frank", "Caleb Gregory", "Alexander Hall", "Louis Hassell", "Sam
+      Hentschel", "Bryce Hoener", "Frank Kallal", "Beth Kieler", "Daniel
+      Lovett", "Ryan Miller", "Morgan Miransky", "Ian Remsbecker", "John
+      Reskusich", "Derek Sigler", "Derek Sigler", "Kim Stahl", "Chase
+      Steinmann", "Diane Sudduth", "Karen Swartz", "Eric Terry", "David Thuita",
+      "Craig Walters", "Robert Ward", "Bob Watson", "Ryan Williams", "Keith
+      Woeltje" }'
+  - id: active_time
+    type: uint32_t
+    restore_value: no
+    initial_value: "5"
+  - id: last_scanned_id
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: last_scanned_name
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: expiration_time
+    type: uint32_t
+    restore_value: no
+    initial_value: "0"
+script:
+  - id: turn_on
+    then:
+      - lambda: |-
+          id(expiration_time) = id(active_time);
+          id(relay).turn_on();
+  - id: turn_off
+    then:
+      - lambda: id(relay).turn_off();
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          if (id(expiration_time) > 0) {
+              id(expiration_time) -= 1;
+              if (id(expiration_time) == 0) {
+                  id(turn_off).execute();
+              }
+          }
+captive_portal: null
+logger: null
+ota: null
+font:
+  - id: hack
+    file: Hack-Regular.ttf
+    size: 15
+  - id: hack10
+    file: Hack-Regular.ttf
+    size: 10
+color:
+  - id: yellow
+    red: 50%
+    green: 50%
+    blue: 0%
+    white: 0%
+  - id: red
+    red: 100%
+    green: 0%
+    blue: 0%
+    white: 0%
+  - id: green
+    red: 0%
+    green: 100%
+    blue: 0%
+    white: 0%
+switch:
+  - platform: gpio
+    pin: D0
+    id: relay
+i2c:
+  sda: D2
+  scl: D1
+display:
+  - platform: ssd1306_i2c
+    model: SSD1306 128x64
+    address: 60
+    update_interval: 1s
+    lambda: >-
+      it.fill(COLOR_OFF);
+
+
+      it.print(0, 0, id(hack), id(yellow), id(lockout_name).c_str());
+
+
+      if (id(expiration_time) > 0) {
+          it.print(0, 15, id(hack10), id(green), "Unlocked");
+          it.print(0, 25, id(hack10), id(green), to_string(id(expiration_time)).c_str());
+          it.print(25, 25, id(hack10), id(green), "Seconds Left");
+      } else {
+          it.print(0, 15, id(hack), id(red), "Locked");
+      }
+
+
+      it.print(0, 45, id(hack10), id(last_scanned_id).c_str());
+
+      it.print(40, 45, id(hack10), id(last_scanned_name).c_str());
+wiegand_reader:
+  d0_pin: 12
+  d1_pin: 14
+  on_tag:
+    lambda: |-
+      ESP_LOGD("reader", "Read tag %s", x.c_str());
+
+      id(last_scanned_id) = x;
+      id(last_scanned_name) = "Not Allowed";
+
+      bool found = false;
+      for (int i = 0; i < id(allowed_card_ids).size(); i++) {
+          if (id(allowed_card_ids)[i].compare(x) == 0) {
+              id(last_scanned_name) = id(allowed_names)[i];
+              id(turn_on).execute();
+              found = true;
+              ESP_LOGD(
+                  "reader",
+                  "allowed tag found matching %s: %s",
+                  x.c_str(),
+                  id(last_scanned_name).c_str()
+              );
+              break;
+          }
+      }
+
+      if (!found) {
+          ESP_LOGD("reader", "no allowed tags found matching %s", x.c_str());
+      }

@@ -12,7 +12,7 @@ wifi:
   ap:
     ssid: lockout-backdoor-fallback
     password: MemberzOnlyFoo
-  use_address: 10.42.10.183
+  use_address: 10.42.10.51
 globals:
   - id: lockout_name
     type: std::string

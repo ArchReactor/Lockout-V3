@@ -5,8 +5,10 @@ const YAML = require('yaml');
 const fs = require('fs');
 const got = require('got');
 const { Command } = require('commander');
+const { exec } = require('child_process');
 
 const program = new Command();
+program.option('--initial', 'is this an initial creation');
 program.requiredOption('--group <group>', 'the group which should be allowed access to the lockout');
 program.option('--url <url>', 'the base URL of CiviCRM', 'https://archreactor.org/sites/all/modules/civicrm/extern/rest.php');
 program.requiredOption('--key <key>');
@@ -15,13 +17,12 @@ program.requiredOption('--name <name>');
 program.requiredOption('--activeTime <activeTime>');
 program.requiredOption('--wifiName <wifiName>');
 program.requiredOption('--wifiPass <wifiPass>');
-program.requiredOption('--nodeRed <nodeRed>');
-program.requiredOption('--espHomeRepo <espHomeRepo>');
-program.requiredOption('--espHomeBranch <espHomeBranch>');
+program.requiredOption('--esphome <esphome>');
 program.requiredOption('--ip <ip>');
 
 program.parse();
 
+const initial = program.opts().initial;
 const url = program.opts().url;
 const key = program.opts().key;
 const apiKey = program.opts().apiKey;
@@ -30,8 +31,7 @@ const name = program.opts().name;
 const activeTime = parseInt(program.opts().activeTime, 10);
 const wifiName = program.opts().wifiName;
 const wifiPass = program.opts().wifiPass;
-const nodeRed = program.opts().nodeRed;
-const espHome = program.opts().espHome;
+const esphome = program.opts().esphome;
 const ip = program.opts().ip;
 
 async function getPageOfGroupMembers(url, apiKey, group, limit, offset) {
@@ -122,9 +122,9 @@ Promise.resolve()
 	template.esphome.name = `lockout-${name}`;
 	template.wifi.ssid = wifiName;
 	template.wifi.password = wifiPass;
+	template.wifi.use_address = ip;
 	template.wifi.ap.ssid = `lockout-${name}-fallback`;
 	template.wifi.ap.password = wifiPass;
-	template.wifi.use_address = ip;
 
 	setGlobal(template, 'lockout_name', name);
 	setGlobal(template, 'active_time', activeTime);
@@ -137,10 +137,36 @@ Promise.resolve()
 	setGlobal(template, 'allowed_card_ids', cards);
 	setGlobal(template, 'allowed_names', names);
 
-	fs.writeFileSync(`../build/${name}.yaml`, YAML.stringify(template));
+	const filename = `../build/${name}.yaml`;
+	fs.writeFileSync(filename, YAML.stringify(template));
 
-	// docker build from branch
-	// docker run
+	if (initial) {
+		console.log(`config file has been written to ${filename}, run the following to load via USB:`);
+		console.log(`sudo docker run --rm -v "\${PWD}/../build":/config -it --device /dev/ttyUSB0 esphome logs ${name}.yaml`);
+	} else {
+		console.log('attempting to update lockout');
+		await new Promise((resolve, reject) => {
+			const timeout = setTimeout(
+				() => reject(new Error('timeout attempting to update')),
+				60 * 1000
+			);
+
+			exec(
+				`docker run \
+					--rm \
+					-v "${__dirname}/../build":/config \
+					${esphome} run --no-logs ${name}.yaml
+				`,
+				(err) => {
+					clearTimeout(timeout);
+
+					if (err) reject(err);
+					else resolve();
+				}
+			);
+		});
+		console.log('lockout updated');
+	}
 })
 .catch((err) => {
 	console.log('Error:');

@@ -77,6 +77,8 @@ async function getGroupMembers(url, apiKey, group) {
     const results = [];
 
     const getNextPage = async (offset = 0) => {
+		console.log(`fetching ${limit} group members from offset ${offset}`);
+
         const page = await getPageOfGroupMembers(url, apiKey, group, limit, offset);
 
         if (page.length === 0) return;
@@ -116,8 +118,12 @@ function setGlobal(template, name, value) {
 
 Promise.resolve()
 .then(async () => {
+	console.log('reading template');
+
 	const templateFile = fs.readFileSync('../template/template.yaml', { encoding: 'utf-8' });
 	const template = YAML.parse(templateFile);
+
+	console.log(`building config for ${name}`);
 
 	template.esphome.name = `lockout-${name}`;
 	template.wifi.ssid = wifiName;
@@ -129,6 +135,8 @@ Promise.resolve()
 	setGlobal(template, 'lockout_name', name);
 	setGlobal(template, 'active_time', activeTime);
 
+	console.log(`fetching members for group ${group}`);
+
 	const members = await getGroupMembers(url, apiKey, group);
 
 	const cards = members.map((m) => m.card);
@@ -136,6 +144,8 @@ Promise.resolve()
 
 	setGlobal(template, 'allowed_card_ids', cards);
 	setGlobal(template, 'allowed_names', names);
+
+	console.log(`writing template file`);
 
 	const filename = `../build/${name}.yaml`;
 	fs.writeFileSync(filename, YAML.stringify(template));

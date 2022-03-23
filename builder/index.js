@@ -60,7 +60,9 @@ async function getPageOfGroupMembers(url, apiKey, group, limit, offset) {
         .map((val) => {
             const name = val.display_name;
             const email = val.email;
-            const cards = val.custom_12.split(',').filter((card) => card.length > 0);
+			const cards = val.custom_12.split(',')
+				.filter((card) => card.length > 0)
+				.map((cardId) => cardId.toLowerCase());
 
             if (cards.length === 0) {
                 console.error(`no cards found for ${name} - ${email}`);

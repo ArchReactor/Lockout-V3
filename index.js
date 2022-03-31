@@ -6,6 +6,7 @@ const fs = require('fs');
 const got = require('got');
 const { Command } = require('commander');
 const { exec } = require('child_process');
+const path = require('path');
 
 const program = new Command();
 program.option('--initial', 'is this an initial creation');
@@ -19,6 +20,7 @@ program.requiredOption('--wifiName <wifiName>');
 program.requiredOption('--wifiPass <wifiPass>');
 program.requiredOption('--esphome <esphome>');
 program.requiredOption('--ip <ip>');
+program.option('--output <output>', 'the dir to write the finished template out to, defaults to build');
 
 program.parse();
 
@@ -33,6 +35,7 @@ const wifiName = program.opts().wifiName;
 const wifiPass = program.opts().wifiPass;
 const esphome = program.opts().esphome;
 const ip = program.opts().ip;
+const outputDir = program.opts().output || '../build';
 
 async function getPageOfGroupMembers(url, apiKey, group, limit, offset) {
     const searchParams = new URLSearchParams([
@@ -122,7 +125,7 @@ Promise.resolve()
 .then(async () => {
 	console.log('reading template');
 
-	const templateFile = fs.readFileSync('../template/template.yaml', { encoding: 'utf-8' });
+	const templateFile = fs.readFileSync('./template/template.yaml', { encoding: 'utf-8' });
 	const template = YAML.parse(templateFile);
 
 	console.log(`building config for ${name}`);
@@ -149,12 +152,14 @@ Promise.resolve()
 
 	console.log(`writing template file`);
 
-	const filename = `../build/${name}.yaml`;
+	const filename = path.resolve(outputDir, `${name}.yaml`);
+	fs.mkdirSync(outputDir, { recursive: true });
 	fs.writeFileSync(filename, YAML.stringify(template));
+	fs.copyFileSync('./template/Hack-Regular.ttf', path.resolve(outputDir, 'Hack-Regular.ttf'));
 
 	if (initial) {
 		console.log(`config file has been written to ${filename}, run the following to load via USB:`);
-		console.log(`sudo docker run --rm -v "\${PWD}/../build":/config -it --device /dev/ttyUSB0 esphome logs ${name}.yaml`);
+		console.log(`sudo docker run --rm -v "${outputDir}":/config -it --device /dev/ttyUSB0 esphome logs ${name}.yaml`);
 	} else {
 		console.log('attempting to update lockout');
 		await new Promise((resolve, reject) => {
@@ -166,7 +171,7 @@ Promise.resolve()
 			exec(
 				`docker run \
 					--rm \
-					-v "${__dirname}/../build":/config \
+					-v "${outputDir}":/config \
 					${esphome} run --no-logs ${name}.yaml
 				`,
 				(err) => {

@@ -1,4 +1,2 @@
-.idea
-builder/node_modules
-build/*.yaml
-builder/update.sh
+node_modules
+update.sh

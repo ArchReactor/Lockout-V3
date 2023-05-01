@@ -8,14 +8,15 @@ esphome:
           - script.execute: turn_off
 
 api:          
+  reboot_timeout: 0s
 
 wifi:
   ssid: "###placeholder###"
   password: "###placeholder###"
-
   ap:
     ssid: "###placeholder###"
     password: "###placeholder###"
+  fast_connect: on
 
 globals:
     - id: lockout_name
@@ -53,27 +54,43 @@ globals:
       restore_value: no
       initial_value: "0"
 
+    - id: heartbeat
+      type: "uint32_t"
+      restore_value: no
+      initial_value: "0"
+
 script:
-    - id: turn_on
-      then:
-          - lambda: |-
-              id(expiration_time) = id(active_time);
-              id(relay).turn_on();
-    - id: turn_off
-      then:
-          - lambda: |-
-              id(relay).turn_off();
+  - id: turn_on
+    then:
+      - lambda: |-
+          ESP_LOGD("relay", "turning on relay");
+
+          id(expiration_time) = id(active_time);
+          id(relay).turn_on();
+  - id: turn_off
+    then:
+      - lambda: |-
+          ESP_LOGD("relay", "turning off relay");
+
+          id(relay).turn_off();
 
 interval:
-    - interval: 1s
-      then:
-          - lambda: |-
-              if (id(expiration_time) > 0) {
-                  id(expiration_time) -= 1;
-                  if (id(expiration_time) == 0) {
-                      id(turn_off).execute();
-                  }
+  - interval: 1s
+    then:
+      - lambda: |-
+          if (id(expiration_time) > 0) {
+              ESP_LOGD("relay", "decrementing expiration time, current time %i", id(expiration_time));
+
+              id(expiration_time) -= 1;
+              if (id(expiration_time) == 0) {
+                  id(turn_off).execute();
               }
+          }
+  - interval: 10s
+    then:
+      - lambda: |-
+          ESP_LOGD("relay", "heartbeat: %i", id(heartbeat));
+          id(heartbeat) += 1;
 
 captive_portal:
 
@@ -111,6 +128,7 @@ switch:
   - platform: gpio
     pin: D0
     id: relay
+    restore_mode: ALWAYS_OFF
 
 i2c:
   sda: D2

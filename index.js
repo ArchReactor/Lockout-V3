@@ -20,6 +20,8 @@ program.requiredOption('--wifiName <wifiName>');
 program.requiredOption('--wifiPass <wifiPass>');
 program.requiredOption('--esphome <esphome>');
 program.requiredOption('--ip <ip>');
+program.option('--pin <pin>', 'the pin to switch on and off');
+program.option('--template <template>', 'the pin to switch on and off');
 program.option('--output <output>', 'the dir to write the finished template out to, defaults to build');
 
 program.parse();
@@ -35,6 +37,8 @@ const wifiName = program.opts().wifiName;
 const wifiPass = program.opts().wifiPass;
 const esphome = program.opts().esphome;
 const ip = program.opts().ip;
+const pin = program.opts().pin || 'D0';
+const templateInput = program.opts().template || 'template.yaml';
 const outputDir = program.opts().output || '../build';
 
 async function getPageOfGroupMembers(url, apiKey, group, limit, offset) {
@@ -125,7 +129,7 @@ Promise.resolve()
 .then(async () => {
 	console.log('reading template');
 
-	const templateFile = fs.readFileSync('./template/template.yaml', { encoding: 'utf-8' });
+	const templateFile = fs.readFileSync(`./template/${templateInput}`, { encoding: 'utf-8' });
 	const template = YAML.parse(templateFile);
 
 	console.log(`building config for ${name}`);
@@ -136,6 +140,7 @@ Promise.resolve()
 	template.wifi.use_address = ip;
 	template.wifi.ap.ssid = `lockout-${name}-fallback`;
 	template.wifi.ap.password = wifiPass;
+	template.switch[0].pin = pin;
 
 	setGlobal(template, 'lockout_name', name);
 	setGlobal(template, 'active_time', activeTime);

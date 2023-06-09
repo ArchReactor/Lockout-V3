@@ -65,6 +65,7 @@ async function getPageOfGroupMembers(url, apiKey, group, limit, offset) {
 
     return response.values
         .map((val) => {
+          const id = val.id
             const name = val.display_name;
             const email = val.email;
 			const cards = val.custom_12.split(',')
@@ -75,7 +76,7 @@ async function getPageOfGroupMembers(url, apiKey, group, limit, offset) {
                 console.error(`no cards found for ${name} - ${email}`);
             }
 
-            return cards.map((card) => ({ name, email, card }))
+            return cards.map((card) => ({ id, name, email, card }))
         })
         .flat();
 }
@@ -130,36 +131,41 @@ Promise.resolve()
 	console.log('reading template');
 
 	const templateFile = fs.readFileSync(`./template/${templateInput}`, { encoding: 'utf-8' });
-	const template = YAML.parse(templateFile);
 
 	console.log(`building config for ${name}`);
 
-	template.esphome.name = `lockout-${name}`;
-	template.wifi.ssid = wifiName;
-	template.wifi.password = wifiPass;
-	template.wifi.use_address = ip;
-	template.wifi.ap.ssid = `lockout-${name}-fallback`;
-	template.wifi.ap.password = wifiPass;
-	template.switch[0].pin = pin;
-
-	setGlobal(template, 'lockout_name', name);
-	setGlobal(template, 'active_time', activeTime);
-
 	console.log(`fetching members for group ${group}`);
+  
+  const members = await getGroupMembers(url, apiKey, group);
 
-	const members = await getGroupMembers(url, apiKey, group);
+  const allowedCards = `{${members.map((m) => `"${m.card}"`).join(',')}}`;
+  const allowedNames = `{${members.map((m) => `"${m.name}"`).join(',')}}`;
+  const allowedIds = `{${members.map((m) => `"${m.id}"`).join(',')}}`;
 
-	const cards = members.map((m) => m.card);
-	const names = members.map((m) => m.name);
+  const substitutions = {
+    name: `lockout-${name}`,
+    wifiName,
+    wifiPass,
+    ip,
+    apiKey,
+    key,
+    fallbackWifiName: `lockout-${name}-fallback`,
+    fallbackWifiPass: wifiPass,
+    pin,
+    activeTime: `${activeTime}`,
+    allowedCards,
+    allowedNames,
+    allowedIds,
+  }
 
-	setGlobal(template, 'allowed_card_ids', cards);
-	setGlobal(template, 'allowed_names', names);
+  const substitutionsStr = YAML.stringify({ substitutions });
+  const renderedTemplate = `${substitutionsStr}\n\n${templateFile}`;
 
 	console.log(`writing template file`);
 
 	const filename = path.resolve(outputDir, `${name}.yaml`);
 	fs.mkdirSync(outputDir, { recursive: true });
-	fs.writeFileSync(filename, YAML.stringify(template));
+	fs.writeFileSync(filename, renderedTemplate);
 	fs.copyFileSync('./template/Hack-Regular.ttf', path.resolve(outputDir, 'Hack-Regular.ttf'));
 
 	if (initial) {

@@ -1,5 +1,5 @@
 esphome:
-  name: placeholder
+  name: $name
   platform: ESP8266
   board: nodemcu
 
@@ -11,33 +11,49 @@ api:
   reboot_timeout: 0s
 
 wifi:
-  ssid: "###placeholder###"
-  password: "###placeholder###"
+  ssid: $wifiName
+  password: $wifiPass
   ap:
-    ssid: "###placeholder###"
-    password: "###placeholder###"
+    ssid: $fallbackWifiName
+    password: $fallbackWifiPass
   fast_connect: on
+  use_address: $ip
+
+http_request:
+  useragent: esphome/device
+  timeout: 10s
+  esp8266_disable_ssl_support: no
 
 globals:
     - id: lockout_name
       type: "std::string"
       restore_value: no
-      initial_value: "\"###placeholder###\""
+      initial_value: "\"$name\""
 
     - id: allowed_card_ids
       type: "std::vector<std::string>"
       restore_value: no
-      initial_value: "{ \"###placeholder###\" }"
+      initial_value: $allowedCards
 
     - id: allowed_names
       type: "std::vector<std::string>"
       restore_value: no
-      initial_value: "{ \"###placeholder###\" }"
+      initial_value: $allowedNames
+
+    - id: allowed_ids
+      type: "std::vector<std::string>"
+      restore_value: no
+      initial_value: $allowedIds
 
     - id: active_time
       type: "uint32_t"
       restore_value: no
-      initial_value: "0"
+      initial_value: $activeTime
+
+    - id: last_scanned_card
+      type: "std::string"
+      restore_value: no
+      initial_value: "\"\""
 
     - id: last_scanned_id
       type: "std::string"
@@ -67,6 +83,26 @@ script:
 
           id(expiration_time) = id(active_time);
           id(relay).turn_on();
+      - http_request.post:
+          url: !lambda |-
+            auto url = (std::string) "https://archreactor.org/sites/all/modules/civicrm/extern/rest.php?" +
+               "api_key=" + "$apiKey" + "&" +
+               "key=" + "$key" + "&" +
+               "json=1" + "&" +
+               "entity=Activity" + "&" +
+               "action=Create" + "&" +
+               "json=" + "%7B%20%22source_contact_id%22:" + id(last_scanned_id).c_str() + ",%20%22activity_type_id%22%20:%20%22RFID%22%20,%20%22status_id%22:%22Completed%22%20,%20%22subject%22:%22" + id(lockout_name).c_str() + "%22%20,%20%22assignee_id%22:%20" + id(last_scanned_id).c_str() + "%7D" + "&"
+               ;
+            ESP_LOGD("request", "making post request to %s", url.c_str());
+            return url;
+          verify_ssl: false
+          on_response:
+            then:
+              - logger.log:
+                  format: 'Activity create status: %d, Duration: %u ms'
+                  args:
+                    - status_code
+                    - duration_ms
   - id: turn_off
     then:
       - lambda: |-
@@ -126,7 +162,7 @@ color:
 
 switch:
   - platform: gpio
-    pin: D0
+    pin: $pin
     id: relay
     restore_mode: ALWAYS_OFF
 
@@ -152,35 +188,49 @@ display:
             it.print(0, 15, id(hack), id(red), "Locked");
         }
 
-        it.print(0, 45, id(hack10), id(last_scanned_id).c_str());
+        it.print(0, 45, id(hack10), id(last_scanned_card).c_str());
         it.print(40, 45, id(hack10), id(last_scanned_name).c_str());
 
-wiegand_reader:
-  d0_pin: 12 
-  d1_pin: 14 
-  on_tag:
-      lambda: |-
-          ESP_LOGD("reader", "Read tag %s", x.c_str());
+wiegand:
+  - id: reader
+    d0: D6
+    d1: D5
+    on_raw:
+      - lambda: |-
+          ESP_LOGD("reader", "received raw %d bits, value %llx", bits, value);
 
-          id(last_scanned_id) = x;
+          auto fixedValue = value >> 1;
+
+          ESP_LOGD("reader", "fixed raw %d bits to value %llx", bits, fixedValue);
+
+          auto rawStringValue = format_hex(fixedValue);
+          auto firstNonZero = std::min(rawStringValue.find_first_not_of('0'), rawStringValue.size()-1);
+          auto stringValue = rawStringValue.erase(0, firstNonZero);
+
+          ESP_LOGD("reader", "Read tag %s", stringValue.c_str());
+
+          id(last_scanned_card) = stringValue;
           id(last_scanned_name) = "Not Allowed";
 
           bool found = false;
           for (int i = 0; i < id(allowed_card_ids).size(); i++) {
-              if (id(allowed_card_ids)[i].compare(x) == 0) {
+              if (id(allowed_card_ids)[i].compare(stringValue) == 0) {
                   id(last_scanned_name) = id(allowed_names)[i];
+                  id(last_scanned_id) = id(allowed_ids)[i];
                   id(turn_on).execute();
                   found = true;
                   ESP_LOGD(
                       "reader",
-                      "allowed tag found matching %s: %s",
-                      x.c_str(),
-                      id(last_scanned_name).c_str()
+                      "allowed tag found matching %s: %s - %s",
+                      stringValue.c_str(),
+                      id(last_scanned_name).c_str(),
+                      id(last_scanned_id).c_str()
                   );
                   break;
               }
           }
 
           if (!found) {
-              ESP_LOGD("reader", "no allowed tags found matching %s", x.c_str());
+              ESP_LOGD("reader", "no allowed tags found matching %s", stringValue.c_str());
           }
+

@@ -197,6 +197,8 @@ wiegand:
     d1: D5
     on_raw:
       - lambda: |-
+          #TODO Does not currently work with some cards.
+          # shifting to the right kinda works, but breaks some cards
           ESP_LOGD("reader", "received raw %d bits, value %llx", bits, value);
 
           auto fixedValue = value >> 1;

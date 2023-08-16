@@ -169,6 +169,7 @@ switch:
 i2c:
   sda: D2
   scl: D1
+  frequency: 800kHz
 
 display:
     - platform: ssd1306_i2c
@@ -178,18 +179,17 @@ display:
       lambda: |-
         it.fill(COLOR_OFF);
 
-        it.print(0, 0, id(hack), id(yellow), id(lockout_name).c_str());
-
         if (id(expiration_time) > 0) {
-            it.print(0, 15, id(hack10), id(green), "Unlocked");
-            it.print(0, 25, id(hack10), id(green), to_string(id(expiration_time)).c_str());
-            it.print(25, 25, id(hack10), id(green), "Seconds Left");
+          auto msg = "Unlocked: " + to_string(id(expiration_time));
+          it.print(0, 0, id(hack), id(green), msg.c_str());
         } else {
-            it.print(0, 15, id(hack), id(red), "Locked");
+          it.print(0, 0, id(hack), id(red), "Locked");
         }
 
-        it.print(0, 45, id(hack10), id(last_scanned_card).c_str());
-        it.print(40, 45, id(hack10), id(last_scanned_name).c_str());
+        it.print(0, 15, id(hack), id(last_scanned_card).c_str());
+        it.print(0, 30, id(hack), id(last_scanned_name).c_str());
+
+        it.print(0, 45, id(hack), id(yellow), id(lockout_name).c_str());
 
 wiegand:
   - id: reader
@@ -197,42 +197,41 @@ wiegand:
     d1: D5
     on_raw:
       - lambda: |-
-          #TODO Does not currently work with some cards.
-          # shifting to the right kinda works, but breaks some cards
-          ESP_LOGD("reader", "received raw %d bits, value %llx", bits, value);
+          ESP_LOGD("reader", "received raw %d bits, value %08llx", bits, value);
 
-          auto fixedValue = value >> 1;
+          auto fixedValue = (value >> 1) & 0x3FFFFFFF;
 
-          ESP_LOGD("reader", "fixed raw %d bits to value %llx", bits, fixedValue);
+          ESP_LOGD("reader", "fixed raw %d bits to value %08llx", bits, fixedValue);
 
-          auto rawStringValue = format_hex(fixedValue);
-          auto firstNonZero = std::min(rawStringValue.find_first_not_of('0'), rawStringValue.size()-1);
-          auto stringValue = rawStringValue.erase(0, firstNonZero);
+          auto lastScannedRaw = format_hex(fixedValue);
+          auto firstNonZero = lastScannedRaw.find_first_not_of("0", 0);
+          auto lastScanned = lastScannedRaw.substr(firstNonZero);
+          id(last_scanned_card) = lastScanned;
 
-          ESP_LOGD("reader", "Read tag %s", stringValue.c_str());
-
-          id(last_scanned_card) = stringValue;
           id(last_scanned_name) = "Not Allowed";
 
           bool found = false;
           for (int i = 0; i < id(allowed_card_ids).size(); i++) {
-              if (id(allowed_card_ids)[i].compare(stringValue) == 0) {
-                  id(last_scanned_name) = id(allowed_names)[i];
-                  id(last_scanned_id) = id(allowed_ids)[i];
-                  id(turn_on).execute();
-                  found = true;
-                  ESP_LOGD(
-                      "reader",
-                      "allowed tag found matching %s: %s - %s",
-                      stringValue.c_str(),
-                      id(last_scanned_name).c_str(),
-                      id(last_scanned_id).c_str()
-                  );
-                  break;
-              }
+            auto cardString = id(allowed_card_ids)[i];
+            auto parsedCardId = parse_hex<uint32_t>(cardString);
+
+            if (fixedValue == parsedCardId) {
+                id(last_scanned_name) = id(allowed_names)[i];
+                id(last_scanned_id) = id(allowed_ids)[i];
+                id(turn_on).execute();
+                found = true;
+                ESP_LOGD(
+                    "reader",
+                    "allowed tag found matching %08llx: %s - %s",
+                    fixedValue,
+                    id(last_scanned_name).c_str(),
+                    id(last_scanned_id).c_str()
+                );
+                break;
+            }
           }
 
           if (!found) {
-              ESP_LOGD("reader", "no allowed tags found matching %s", stringValue.c_str());
+              ESP_LOGD("reader", "no allowed tags found matching %08llx", fixedValue);
           }
 

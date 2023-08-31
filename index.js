@@ -170,7 +170,7 @@ Promise.resolve()
 
 	if (initial) {
 		console.log(`config file has been written to ${filename}, run the following to load via USB:`);
-		console.log(`sudo docker run --rm -v "${outputDir}":/config -it --device /dev/ttyUSB0 esphome logs ${name}.yaml`);
+		console.log(`esphome run ${name}.yaml`);
 	} else {
 		console.log('attempting to update lockout');
 		await new Promise((resolve, reject) => {

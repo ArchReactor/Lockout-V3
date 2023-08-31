@@ -213,6 +213,11 @@ wiegand:
           bool found = false;
           for (int i = 0; i < id(allowed_card_ids).size(); i++) {
             auto cardString = id(allowed_card_ids)[i];
+
+            if (cardString.length() <= 5) {
+              cardString = "010" + cardString;
+            }
+
             auto parsedCardId = parse_hex<uint32_t>(cardString);
 
             if (fixedValue == parsedCardId) {

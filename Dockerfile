@@ -1,5 +1,5 @@
-FROM node:16
-RUN apt-get update && apt-get install docker.io -y
+FROM node:20-bookworm
+RUN apt-get update && apt-get -y install pipx && pipx ensurepath && pipx install esphome
 WORKDIR /app
 COPY . /app
 RUN npm install

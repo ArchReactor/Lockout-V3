@@ -30,7 +30,7 @@ const initial = program.opts().initial;
 const url = program.opts().url;
 const key = program.opts().key;
 const apiKey = program.opts().apiKey;
-const group = program.opts().group;
+const groupsString = program.opts().group;
 const name = program.opts().name;
 const activeTime = parseInt(program.opts().activeTime, 10);
 const wifiName = program.opts().wifiName;
@@ -134,9 +134,12 @@ Promise.resolve()
 
 	console.log(`building config for ${name}`);
 
-	console.log(`fetching members for group ${group}`);
-  
-  const members = await getGroupMembers(url, apiKey, group);
+  const groups = groupsString.split(',');
+
+  const members = (await Promise.all(groups.map((group) => {
+    console.log(`fetching members for group ${group}`);
+    return getGroupMembers(url, apiKey, group);
+  }))).flat()
 
   const allowedCards = `{${members.map((m) => `"${m.card}"`).join(',')}}`;
   const allowedNames = `{${members.map((m) => `"${m.name}"`).join(',')}}`;

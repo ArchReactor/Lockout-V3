@@ -68,9 +68,9 @@ async function getPageOfGroupMembers(url, apiKey, group, limit, offset) {
           const id = val.id
             const name = val.display_name;
             const email = val.email;
-			const cards = val.custom_12.split(',')
-				.filter((card) => card.length > 0)
-				.map((cardId) => cardId.toLowerCase());
+      const cards = val.custom_12.split(',')
+        .filter((card) => card.length > 0)
+        .map((cardId) => cardId.toLowerCase());
 
             if (cards.length === 0) {
                 console.error(`no cards found for ${name} - ${email}`);
@@ -87,7 +87,7 @@ async function getGroupMembers(url, apiKey, group) {
     const results = [];
 
     const getNextPage = async (offset = 0) => {
-		console.log(`fetching ${limit} group members from offset ${offset}`);
+    console.log(`fetching ${limit} group members from offset ${offset}`);
 
         const page = await getPageOfGroupMembers(url, apiKey, group, limit, offset);
 
@@ -104,35 +104,35 @@ async function getGroupMembers(url, apiKey, group) {
 }
 
 function setGlobal(template, name, value) {
-	let found = false;
-	template.globals.forEach((global) => {
-		if (global.id === name) {
-			found = true;
+  let found = false;
+  template.globals.forEach((global) => {
+    if (global.id === name) {
+      found = true;
 
-			if (_.isNumber(value)) {
-				global.initial_value = `${value}`;
-			} else if (_.isString(value)) {
-				global.initial_value = `"${value}"`;
-			} else if (_.isArray(value)) {
-				global.initial_value = `{ ${value.map((v) => `"${v}"`).join(', ')} }`;
-			} else {
-				throw new Error('invalid global value type');
-			}
-		}
-	});
+      if (_.isNumber(value)) {
+        global.initial_value = `${value}`;
+      } else if (_.isString(value)) {
+        global.initial_value = `"${value}"`;
+      } else if (_.isArray(value)) {
+        global.initial_value = `{ ${value.map((v) => `"${v}"`).join(', ')} }`;
+      } else {
+        throw new Error('invalid global value type');
+      }
+    }
+  });
 
-	if (!found) {
-		throw new Error(`global ${name} not found`);
-	}
+  if (!found) {
+    throw new Error(`global ${name} not found`);
+  }
 }
 
 Promise.resolve()
 .then(async () => {
-	console.log('reading template');
+  console.log('reading template');
 
-	const templateFile = fs.readFileSync(`./template/${templateInput}`, { encoding: 'utf-8' });
+  const templateFile = fs.readFileSync(`./template/${templateInput}`, { encoding: 'utf-8' });
 
-	console.log(`building config for ${name}`);
+  console.log(`building config for ${name}`);
 
   const groups = groupsString.split(',');
 
@@ -164,43 +164,42 @@ Promise.resolve()
   const substitutionsStr = YAML.stringify({ substitutions });
   const renderedTemplate = `${substitutionsStr}\n\n${templateFile}`;
 
-	console.log(`writing template file`);
+  console.log(`writing template file`);
 
-	const filename = path.resolve(outputDir, `${name}.yaml`);
-	fs.mkdirSync(outputDir, { recursive: true });
-	fs.writeFileSync(filename, renderedTemplate);
-	fs.copyFileSync('./template/Hack-Regular.ttf', path.resolve(outputDir, 'Hack-Regular.ttf'));
+  const filename = path.resolve(outputDir, `${name}.yaml`);
+  fs.mkdirSync(outputDir, { recursive: true });
+  fs.writeFileSync(filename, renderedTemplate);
+  fs.copyFileSync('./template/Hack-Regular.ttf', path.resolve(outputDir, 'Hack-Regular.ttf'));
 
-	if (initial) {
-		console.log(`config file has been written to ${filename}, run the following to load via USB:`);
-		console.log(`esphome run ${name}.yaml`);
-	} else {
-		console.log('attempting to update lockout');
-		await new Promise((resolve, reject) => {
-			const timeout = setTimeout(
-				() => reject(new Error('timeout attempting to update')),
-				60 * 1000
-			);
+  if (initial) {
+    console.log(`config file has been written to ${filename}, run the following to load via USB:`);
+    console.log(`esphome run ${name}.yaml`);
+  } else {
+    console.log('attempting to update lockout');
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(
+        () => reject(new Error('timeout attempting to update')),
+        300 * 1000
+      );
 
-			exec(
-				`docker run \
-					--rm \
-					-v "${outputDir}":/config \
-					${esphome} run --no-logs ${name}.yaml
-				`,
-				(err) => {
-					clearTimeout(timeout);
+      exec(
+        `esphome run --no-logs ${filename}`,
+        (err, stdout, stderr) => {
+          clearTimeout(timeout);
 
-					if (err) reject(err);
-					else resolve();
-				}
-			);
-		});
-		console.log('lockout updated');
-	}
+          console.log(stdout);
+          console.log(stderr);
+
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+    console.log('lockout updated');
+  }
 })
 .catch((err) => {
-	console.log('Error:');
+  console.log('Error:');
     console.dir(err);
     process.exit(1);
 });

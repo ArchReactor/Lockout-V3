@@ -19,6 +19,9 @@ program.requiredOption('--activeTime <activeTime>', 'the time the lockout should
 program.requiredOption('--wifiName <wifiName>');
 program.requiredOption('--wifiPass <wifiPass>');
 program.requiredOption('--ip <ip>', 'the IP address that should be used to OTA update the lockout');
+program.requiredOption('--gateway <gateway>', 'the IP address that should be used for the lockout\'s gateway');
+program.requiredOption('--subnet <subnet>', 'the IP address subnet');
+program.requiredOption('--dns <dns>', 'the dns server to use');
 program.option('--pin <pin>', 'the pin to switch on and off');
 program.option('--template <template>', 'the pin to switch on and off');
 program.option('--output <output>', 'the dir to write the finished template out to, defaults to build');
@@ -35,6 +38,9 @@ const activeTime = parseInt(program.opts().activeTime, 10);
 const wifiName = program.opts().wifiName;
 const wifiPass = program.opts().wifiPass;
 const ip = program.opts().ip;
+const gateway = program.opts().gateway;
+const subnet = program.opts().subnet;
+const dns = program.opts().dns;
 const pin = program.opts().pin || 'D0';
 const templateInput = program.opts().template || 'template.yaml';
 const outputDir = program.opts().output || '../build';
@@ -148,6 +154,9 @@ Promise.resolve()
     wifiName,
     wifiPass,
     ip,
+    gateway,
+    subnet,
+    dns,
     apiKey,
     key,
     fallbackWifiName: `lockout-${name}-fallback`,

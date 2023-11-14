@@ -13,6 +13,12 @@ api:
 wifi:
   ssid: $wifiName
   password: $wifiPass
+  manual_ip:
+    static_ip: $ip
+    gateway: $gateway
+    subnet: $subnet
+    dns1: $dns
+    dns2: 8.8.8.8
   ap:
     ssid: $fallbackWifiName
     password: $fallbackWifiPass

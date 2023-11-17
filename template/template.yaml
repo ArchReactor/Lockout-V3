@@ -89,6 +89,13 @@ script:
 
           id(expiration_time) = id(active_time);
           id(relay).turn_on();
+
+  - id: turn_off
+    then:
+      - lambda: |-
+          ESP_LOGD("relay", "turning off relay");
+
+          id(relay).turn_off();
       - http_request.post:
           url: !lambda |-
             auto url = (std::string) "https://archreactor.org/sites/all/modules/civicrm/extern/rest.php?" +
@@ -109,12 +116,6 @@ script:
                   args:
                     - status_code
                     - duration_ms
-  - id: turn_off
-    then:
-      - lambda: |-
-          ESP_LOGD("relay", "turning off relay");
-
-          id(relay).turn_off();
 
 interval:
   - interval: 1s

@@ -177,6 +177,11 @@ Promise.resolve()
   fs.mkdirSync(outputDir, { recursive: true });
   fs.writeFileSync(filename, renderedTemplate);
   fs.copyFileSync('./template/Hack-Regular.ttf', path.resolve(outputDir, 'Hack-Regular.ttf'));
+  const wiegandDir = path.resolve(outputDir, 'components', 'wiegand_reader');
+  fs.mkdirSync(wiegandDir, { recursive: true });
+  fs.copyFileSync('./template/components/wiegand_reader/__init__.py', path.resolve(wiegandDir, '__init__.py'));
+  fs.copyFileSync('./template/components/wiegand_reader/wiegand_reader.h', path.resolve(wiegandDir, 'wiegand_reader.h'));
+  fs.copyFileSync('./template/components/wiegand_reader/wiegand_reader.cpp', path.resolve(wiegandDir, 'wiegand_reader.cpp'));
 
   if (initial) {
     console.log(`config file has been written to ${filename}, run the following to load via USB:`);

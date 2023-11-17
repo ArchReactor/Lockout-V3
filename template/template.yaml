@@ -197,52 +197,39 @@ display:
 
         it.print(0, 45, id(hack), id(yellow), id(lockout_name).c_str());
 
-wiegand:
+external_components:
+  - source: 
+      type: local
+      path: components
+
+wiegand_reader:
   - id: reader
     d0: D6
     d1: D5
-    on_raw:
+    on_tag:
       - lambda: |-
-          ESP_LOGD("reader", "received raw %d bits, value %08llx", bits, value);
+          ESP_LOGD("reader", "Read tag %s", x.c_str());
 
-          auto fixedValue = (value >> 1) & 0x3FFFFFFF;
-
-          ESP_LOGD("reader", "fixed raw %d bits to value %08llx", bits, fixedValue);
-
-          auto lastScannedRaw = format_hex(fixedValue);
-          auto firstNonZero = lastScannedRaw.find_first_not_of("0", 0);
-          auto lastScanned = lastScannedRaw.substr(firstNonZero);
-          id(last_scanned_card) = lastScanned;
-
+          id(last_scanned_id) = x;
           id(last_scanned_name) = "Not Allowed";
 
           bool found = false;
           for (int i = 0; i < id(allowed_card_ids).size(); i++) {
-            auto cardString = id(allowed_card_ids)[i];
-
-            if (cardString.length() <= 5) {
-              cardString = "010" + cardString;
-            }
-
-            auto parsedCardId = parse_hex<uint32_t>(cardString);
-
-            if (fixedValue == parsedCardId) {
-                id(last_scanned_name) = id(allowed_names)[i];
-                id(last_scanned_id) = id(allowed_ids)[i];
-                id(turn_on).execute();
-                found = true;
-                ESP_LOGD(
-                    "reader",
-                    "allowed tag found matching %08llx: %s - %s",
-                    fixedValue,
-                    id(last_scanned_name).c_str(),
-                    id(last_scanned_id).c_str()
-                );
-                break;
+            if (id(allowed_card_ids)[i].compare(x) == 0) {
+              id(last_scanned_name) = id(allowed_names)[i];
+              id(last_scanned_id) = id(allowed_ids)[i];
+              id(turn_on).execute();
+              found = true;
+              ESP_LOGD(
+                "reader",
+                "allowed tag found matching %s: %s",
+                x.c_str(),
+                id(last_scanned_name).c_str()
+              );
+              break;
             }
           }
 
           if (!found) {
-              ESP_LOGD("reader", "no allowed tags found matching %08llx", fixedValue);
+            ESP_LOGD("reader", "no allowed tags found matching %s", x.c_str());
           }
-

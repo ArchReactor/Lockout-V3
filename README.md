@@ -31,6 +31,9 @@ docker run -it --rm \
     --activeTime <TIME IN SECONDS THE LOCKOUT SHOULD STAY OPEN> \
     --pin <THE PIN WE SHOULD SWITCH FOR RELAY CONTROL NORMALLY "D7">
     --ip <IP FOR THE LOCKOUT> \
+    --gateway <THE ROUTER GATEWAY> \
+    --subnet <THE NETWORK SUBNET> \
+    --dns <THE DNS SERVER> \
     --output /tmp/lockout-templates
 ```
 
@@ -41,6 +44,13 @@ Once you have the template file, you'll need to flash it to an ESP.  Plug the ES
 ```
 cd /tmp/lockout-templates/
 esphome logs <LOCKOUT_NAME>.yaml
+
+docker run -it --rm \
+    -v /tmp/lockout-templates:/config \
+    --device /dev/ttyUSB0 \
+    --entrypoint /root/.local/bin/esphome \ 
+    ar-lockout 
+    run /config/<LOCKOUT NAME>.yaml
 ```
 
 This will flash a device connected via USB with the template file you just generated.
@@ -49,12 +59,11 @@ After that you'll need to login to the router and set a static IP for the ESP.  
 
 ## Updating an existing lockout
 
-To update an existing lockout, you'll use almost the same script as above, but with slightly different options:
+To update an existing lockout, you'll use almost the same script as above, but without the initial option:
 
 ```
 docker run -it --rm \
     -v /tmp/lockout-templates:/tmp/lockout-templates \
-    -v /var/run/docker.sock:/var/run/docker.sock \
     ar-lockout \
     --key <CIVICRM_KEY> \
     --apiKey <CIVICRM_API_KEY> \
@@ -65,10 +74,11 @@ docker run -it --rm \
     --activeTime <TIME IN SECONDS THE LOCKOUT SHOULD STAY OPEN> \
     --pin <THE PIN WE SHOULD SWITCH FOR RELAY CONTROL NORMALLY "D7">
     --ip <IP FOR THE LOCKOUT> \
+    --gateway <THE ROUTER GATEWAY> \
+    --subnet <THE NETWORK SUBNET> \
+    --dns <THE DNS SERVER> \
     --output /tmp/lockout-templates
 ```
-
-You'll notice that we're mounting the docker control socket into the container so that it can spawn the ESPHome container.  The `--initial` flag is also gone.
 
 This script will generate a fresh template and remotely flash it to the ESP at the provided static IP.
 
@@ -78,7 +88,12 @@ If the lockout isn't working the way you expect, the first thing to check is the
 
 ```
 cd /tmp/lockout-templates/
-esphome logs <LOCKOUT_NAME>.yaml
+docker run -it --rm \
+    -v /tmp/lockout-templates:/config \
+    --device /dev/ttyUSB0 \
+    --entrypoint /root/.local/bin/esphome \ 
+    ar-lockout 
+    logs /config/<LOCKOUT NAME>.yaml
 ```
 
 This will connect to the lockout and begin printing out log messages.

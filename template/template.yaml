@@ -28,7 +28,8 @@ wifi:
 http_request:
   useragent: esphome/device
   timeout: 10s
-  esp8266_disable_ssl_support: no
+  esp8266_disable_ssl_support: yes
+  verify_ssl: false
 
 globals:
     - id: lockout_name
@@ -108,7 +109,6 @@ script:
                ;
             ESP_LOGD("request", "making post request to %s", url.c_str());
             return url;
-          verify_ssl: false
           on_response:
             then:
               - logger.log:
@@ -141,6 +141,7 @@ captive_portal:
 logger:
 
 ota:
+  platform: esphome
 
 font:
     - id: hack

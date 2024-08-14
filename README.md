@@ -59,7 +59,7 @@ After that you'll need to login to the router and set a static IP for the ESP.  
 
 ## Updating an existing lockout
 
-To update an existing lockout, you'll use almost the same script as above, but without the initial option:
+To update an existing lockout, you'll use almost the same script as above, but without the --initial option:
 
 ```
 docker run -it --rm \

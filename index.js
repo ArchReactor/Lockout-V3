@@ -5,7 +5,7 @@ const YAML = require('yaml');
 const fs = require('fs');
 const got = require('got');
 const { Command } = require('commander');
-const { exec } = require('child_process');
+const { spawn } = require('child_process');
 const path = require('path');
 
 const program = new Command();
@@ -171,9 +171,10 @@ Promise.resolve()
   const substitutionsStr = YAML.stringify({ substitutions });
   const renderedTemplate = `${substitutionsStr}\n\n${templateFile}`;
 
+  const filename = path.resolve(outputDir, `${name}.yaml`);
+
   console.log(`writing template file ${filename}`);
 
-  const filename = path.resolve(outputDir, `${name}.yaml`);
   fs.mkdirSync(outputDir, { recursive: true });
   fs.writeFileSync(filename, renderedTemplate);
   fs.copyFileSync('./template/Hack-Regular.ttf', path.resolve(outputDir, 'Hack-Regular.ttf'));
@@ -188,26 +189,38 @@ Promise.resolve()
     console.log(`esphome run ${name}.yaml`);
   } else {
     console.log('attempting to update lockout');
-    await new Promise((resolve, reject) => {
-      const timeout = setTimeout(
-        () => reject(new Error('timeout attempting to update')),
-        300 * 1000
-      );
+    const timeout = setTimeout(
+      () => reject(new Error('timeout attempting to update')),
+      300 * 1000
+    );
 
-      exec(
-        `esphome run --no-logs ${filename}`,
-        (err, stdout, stderr) => {
-          clearTimeout(timeout);
-
-          console.log(stdout);
-          console.log(stderr);
-
-          if (err) reject(err);
-          else resolve();
-        }
-      );
+    const esp = spawn('esphome', ['run', '--no-logs', filename], {timeout: 300 * 1000} );// 5 minutes
+    
+    esp.stdout.on('data', (data) => {
+      let msg = data.toString();
+      //console.log(data.toString());
     });
-    console.log('lockout updated');
+    
+    esp.stderr.on('data', (data) => {
+      let msg = data.toString();
+      if(msg.includes('ERROR')){
+        console.log('Error:');
+        console.dir();
+        process.exit(1);
+      } else {
+        console.log(msg);
+      }
+    });
+    
+    esp.on('close', (code) => {
+      if(code == 0){
+        console.log('lockout updated');
+      } else {
+        console.log(`ESPHome exited with code ${code}`);
+      }
+      process.exit(code);
+    }); 
+    
   }
 })
 .catch((err) => {
@@ -215,4 +228,3 @@ Promise.resolve()
     console.dir(err);
     process.exit(1);
 });
-

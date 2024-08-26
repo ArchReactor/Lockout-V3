@@ -197,15 +197,14 @@ Promise.resolve()
     const esp = spawn('esphome', ['run', '--no-logs', filename], {timeout: 300 * 1000} );// 5 minutes
     
     esp.stdout.on('data', (data) => {
-      let msg = data.toString();
+      let msg = data;
       //console.log(data.toString());
     });
     
     esp.stderr.on('data', (data) => {
-      let msg = data.toString();
+      let msg = data.toString().trim();
       if(msg.includes('ERROR')){
-        console.log('Error:');
-        console.dir();
+        console.log('Error:' + msg);
         process.exit(1);
       } else {
         console.log(msg);
@@ -218,6 +217,7 @@ Promise.resolve()
       } else {
         console.log(`ESPHome exited with code ${code}`);
       }
+      console.log(" ");
       process.exit(code);
     }); 
     

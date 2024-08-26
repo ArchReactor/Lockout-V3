@@ -171,7 +171,7 @@ Promise.resolve()
   const substitutionsStr = YAML.stringify({ substitutions });
   const renderedTemplate = `${substitutionsStr}\n\n${templateFile}`;
 
-  console.log(`writing template file`);
+  console.log(`writing template file ${filename}`);
 
   const filename = path.resolve(outputDir, `${name}.yaml`);
   fs.mkdirSync(outputDir, { recursive: true });

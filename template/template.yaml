@@ -114,8 +114,8 @@ script:
               - logger.log:
                   format: 'Activity create status: %d, Duration: %u ms'
                   args:
-                    - status_code
-                    - duration_ms
+                    - response->status_code
+                    - response->duration_ms
 
 interval:
   - interval: 1s

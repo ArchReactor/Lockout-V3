@@ -8,7 +8,9 @@ esphome:
           - script.execute: turn_off
 
 api:          
-  reboot_timeout: 0s
+  #reboot_timeout: 0s
+  encryption:
+    key: "$espKey"
 
 wifi:
   ssid: $wifiName
@@ -27,8 +29,8 @@ wifi:
 
 http_request:
   useragent: esphome/device
-  timeout: 10s
-  esp8266_disable_ssl_support: yes
+  timeout: 4s
+  esp8266_disable_ssl_support: false
   verify_ssl: false
 
 globals:
@@ -60,17 +62,17 @@ globals:
     - id: last_scanned_card
       type: "std::string"
       restore_value: no
-      initial_value: "\"\""
+      initial_value: ""
 
     - id: last_scanned_id
       type: "std::string"
       restore_value: no
-      initial_value: "\"\""
+      initial_value: ""
       
     - id: last_scanned_name
       type: "std::string"
       restore_value: no
-      initial_value: "\"\""
+      initial_value: ""
 
     - id: expiration_time
       type: "uint32_t"
@@ -83,6 +85,36 @@ globals:
       initial_value: "0"
 
 script:
+  - id: scan_tag
+    parameters:
+      tag: string
+    then:
+      - lambda: |-
+          id(last_scanned_id) = tag;
+          id(last_scanned_name) = "Not Allowed";
+
+          bool found = false;
+          for (int i = 0; i < id(allowed_card_ids).size(); i++) {
+            if (id(allowed_card_ids)[i].compare(tag) == 0) {
+              id(last_scanned_name) = id(allowed_names)[i];
+              id(last_scanned_id) = id(allowed_ids)[i];
+              id(last_scanned_card) = id(allowed_card_ids)[i];
+              found = true;
+              ESP_LOGD(
+                "reader",
+                "allowed tag found matching %s: %s",
+                tag.c_str(),
+                id(last_scanned_name).c_str()
+              );
+              id(turn_on).execute();
+              break;
+            }
+          }
+
+          if (!found) {
+            ESP_LOGD("reader", "no allowed tags found matching %s", tag.c_str());
+          }
+
   - id: turn_on
     then:
       - lambda: |-
@@ -90,6 +122,15 @@ script:
 
           id(expiration_time) = id(active_time);
           id(relay).turn_on();
+      - http_request.get:
+          url: !lambda |-
+            auto url = (std::string) "http://esphome.ar.lan/rfid.php?id=" + id(last_scanned_id).c_str() + "&name=" + id(lockout_name).c_str();
+            ESP_LOGD("request", "making request to %s", url.c_str());
+            return url;
+          on_response:
+            then: 
+              - lambda: |-
+                  ESP_LOGD("request", "Request Complete %d %u ms", response->status_code, response->duration_ms);
 
   - id: turn_off
     then:
@@ -97,25 +138,6 @@ script:
           ESP_LOGD("relay", "turning off relay");
 
           id(relay).turn_off();
-      - http_request.post:
-          url: !lambda |-
-            auto url = (std::string) "https://archreactor.org/sites/all/modules/civicrm/extern/rest.php?" +
-               "api_key=" + "$apiKey" + "&" +
-               "key=" + "$key" + "&" +
-               "json=1" + "&" +
-               "entity=Activity" + "&" +
-               "action=Create" + "&" +
-               "json=" + "%7B%20%22source_contact_id%22:" + id(last_scanned_id).c_str() + ",%20%22activity_type_id%22%20:%20%22RFID%22%20,%20%22status_id%22:%22Completed%22%20,%20%22subject%22:%22" + id(lockout_name).c_str() + "%22%20,%20%22assignee_id%22:%20" + id(last_scanned_id).c_str() + "%7D" + "&"
-               ;
-            ESP_LOGD("request", "making post request to %s", url.c_str());
-            return url;
-          on_response:
-            then:
-              - logger.log:
-                  format: 'Activity create status: %d, Duration: %u ms'
-                  args:
-                    - response->status_code
-                    - response->duration_ms
 
 interval:
   - interval: 1s
@@ -174,6 +196,25 @@ switch:
     id: relay
     restore_mode: ALWAYS_OFF
 
+text:
+  - platform: template
+    mode: text
+    id: scanid
+    name: "Scan ID"
+    initial_value: ""
+    set_action: 
+      then:
+        - lambda: |-
+            if (x != "") {
+              id(scan_tag)->execute(x);
+            }
+
+text_sensor:
+  - platform: template
+    name: "Last Person"
+    lambda: |-
+      return id(last_scanned_name);
+
 i2c:
   sda: D2
   scl: D1
@@ -210,28 +251,6 @@ wiegand_reader:
     d1: D5
     on_tag:
       - lambda: |-
-          ESP_LOGD("reader", "Read tag %s", x.c_str());
-
-          id(last_scanned_id) = x;
-          id(last_scanned_name) = "Not Allowed";
-
-          bool found = false;
-          for (int i = 0; i < id(allowed_card_ids).size(); i++) {
-            if (id(allowed_card_ids)[i].compare(x) == 0) {
-              id(last_scanned_name) = id(allowed_names)[i];
-              id(last_scanned_id) = id(allowed_ids)[i];
-              id(turn_on).execute();
-              found = true;
-              ESP_LOGD(
-                "reader",
-                "allowed tag found matching %s: %s",
-                x.c_str(),
-                id(last_scanned_name).c_str()
-              );
-              break;
-            }
-          }
-
-          if (!found) {
-            ESP_LOGD("reader", "no allowed tags found matching %s", x.c_str());
+          if (x != "") {
+              id(scan_tag)->execute(x);
           }

@@ -14,6 +14,7 @@ program.requiredOption('--group <group>', 'the group which should be allowed acc
 program.option('--url <url>', 'the base URL of CiviCRM', 'https://archreactor.org/sites/all/modules/civicrm/extern/rest.php');
 program.requiredOption('--key <key>', 'the CiviCRM key');
 program.requiredOption('--apiKey <apiKey>', 'the CiviCRM API key');
+program.requiredOption('--espKey <espKey>', 'the ESPHome API key');
 program.requiredOption('--name <name>', 'the name of the lockout');
 program.requiredOption('--activeTime <activeTime>', 'the time the lockout should be active after a valid swipe');
 program.requiredOption('--wifiName <wifiName>');
@@ -32,6 +33,7 @@ const initial = program.opts().initial;
 const url = program.opts().url;
 const key = program.opts().key;
 const apiKey = program.opts().apiKey;
+const espKey = program.opts().espKey;
 const groupsString = program.opts().group;
 const name = program.opts().name;
 const activeTime = parseInt(program.opts().activeTime, 10);
@@ -157,8 +159,7 @@ Promise.resolve()
     gateway,
     subnet,
     dns,
-    apiKey,
-    key,
+    espKey,
     fallbackWifiName: `lockout-${name}-fallback`,
     fallbackWifiPass: wifiPass,
     pin,
@@ -178,6 +179,7 @@ Promise.resolve()
   fs.mkdirSync(outputDir, { recursive: true });
   fs.writeFileSync(filename, renderedTemplate);
   fs.copyFileSync('./template/Hack-Regular.ttf', path.resolve(outputDir, 'Hack-Regular.ttf'));
+//  fs.copyFileSync('./template/esp32_wdt.h', path.resolve(outputDir, 'esp32_wdt.h'));
   const wiegandDir = path.resolve(outputDir, 'components', 'wiegand_reader');
   fs.mkdirSync(wiegandDir, { recursive: true });
   fs.copyFileSync('./template/components/wiegand_reader/__init__.py', path.resolve(wiegandDir, '__init__.py'));

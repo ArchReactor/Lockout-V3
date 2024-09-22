@@ -24,6 +24,7 @@ docker run -it --rm \
     --initial \
     --key <CIVICRM_KEY> \
     --apiKey <CIVICRM_API_KEY> \
+    --espKey <ESPHome API key> \
     --group <CIVICRM_GROUP_ID> \
     --name <LOCKOUT_NAME> \
     --wifiName <WIFI_NAME> \
@@ -67,6 +68,7 @@ docker run -it --rm \
     ar-lockout \
     --key <CIVICRM_KEY> \
     --apiKey <CIVICRM_API_KEY> \
+    --espKey <ESPHome API key> \
     --group <CIVICRM_GROUP_ID> \
     --name <LOCKOUT_NAME> \
     --wifiName <WIFI_NAME> \

@@ -7,7 +7,7 @@ esphome:
       then:
           - script.execute: turn_off
 
-api:          
+api:
   #reboot_timeout: 0s
   encryption:
     key: "$espKey"
@@ -54,6 +54,9 @@ globals:
       restore_value: no
       initial_value: $allowedIds
 
+    - id: http_queue
+      type: 'std::vector<std::string>'
+
     - id: active_time
       type: "uint32_t"
       restore_value: no
@@ -68,7 +71,7 @@ globals:
       type: "std::string"
       restore_value: no
       initial_value: ""
-      
+
     - id: last_scanned_name
       type: "std::string"
       restore_value: no
@@ -122,15 +125,8 @@ script:
 
           id(expiration_time) = id(active_time);
           id(relay).turn_on();
-      - http_request.get:
-          url: !lambda |-
-            auto url = (std::string) "http://esphome.ar.lan/rfid.php?id=" + id(last_scanned_id).c_str() + "&name=" + id(lockout_name).c_str();
-            ESP_LOGD("request", "making request to %s", url.c_str());
-            return url;
-          on_response:
-            then: 
-              - lambda: |-
-                  ESP_LOGD("request", "Request Complete %d %u ms", response->status_code, response->duration_ms);
+          auto url = (std::string) "http://esphome.arsec.lan/rfid.php?id=" + id(last_scanned_id).c_str() + "&name=" + id(lockout_name).c_str();
+          id(http_queue).push_back(url);
 
   - id: turn_off
     then:
@@ -142,6 +138,20 @@ script:
 interval:
   - interval: 1s
     then:
+      - while:
+          condition:
+            lambda: 'return !id(http_queue).empty();'
+          then:
+            - http_request.get:
+                url: !lambda |-
+                  auto url = id(http_queue).front();
+                  id(http_queue).erase(id(http_queue).begin());
+                  ESP_LOGD("request", "making request to %s", url.c_str());
+                  return url;
+                on_response:
+                  then: 
+                    - lambda: |-
+                        ESP_LOGD("request", "Request Complete %d %u ms", response->status_code, response->duration_ms);
       - lambda: |-
           if (id(expiration_time) > 0) {
               ESP_LOGD("relay", "decrementing expiration time, current time %i", id(expiration_time));

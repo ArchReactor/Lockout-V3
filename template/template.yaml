@@ -149,11 +149,11 @@ interval:
                   ESP_LOGD("request", "making request to %s", url.c_str());
                   return url;
                 on_response:
-                  then: 
+                  then:
                     - lambda: |-
                         ESP_LOGD("request", "Request Complete %d %u ms", response->status_code, response->duration_ms);
       - lambda: |-
-          if (id(expiration_time) > 0) {
+          if (id(expiration_time) > 0 && id(expiration_time) < 999) {
               ESP_LOGD("relay", "decrementing expiration time, current time %i", id(expiration_time));
 
               id(expiration_time) -= 1;
@@ -178,10 +178,10 @@ ota:
 font:
     - id: hack
       file: "Hack-Regular.ttf"
-      size: 15 
+      size: 15
     - id: hack10
       file: "Hack-Regular.ttf"
-      size: 10 
+      size: 10
 
 color:
     - id: yellow
@@ -212,7 +212,7 @@ text:
     id: scanid
     name: "Scan ID"
     initial_value: ""
-    set_action: 
+    set_action:
       then:
         - lambda: |-
             if (x != "") {
@@ -238,7 +238,9 @@ display:
       lambda: |-
         it.fill(COLOR_OFF);
 
-        if (id(expiration_time) > 0) {
+        if(id(expiration_time) == 999) {
+          it.print(0, 0, id(hack), id(green), "Unlocked until reset");
+        } else if (id(expiration_time) > 0) {
           auto msg = "Unlocked: " + to_string(id(expiration_time));
           it.print(0, 0, id(hack), id(green), msg.c_str());
         } else {
@@ -251,7 +253,7 @@ display:
         it.print(0, 45, id(hack), id(yellow), id(lockout_name).c_str());
 
 external_components:
-  - source: 
+  - source:
       type: local
       path: components
 

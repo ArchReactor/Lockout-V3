@@ -29,7 +29,7 @@ docker run -it --rm \
     --name <LOCKOUT_NAME> \
     --wifiName <WIFI_NAME> \
     --wifiPass <WIFI_PASS> \
-    --activeTime <TIME IN SECONDS THE LOCKOUT SHOULD STAY OPEN> \
+    --activeTime <TIME IN SECONDS THE LOCKOUT SHOULD STAY OPEN, 999=forever> \
     --pin <THE PIN WE SHOULD SWITCH FOR RELAY CONTROL NORMALLY "D7">
     --ip <IP FOR THE LOCKOUT> \
     --gateway <THE ROUTER GATEWAY> \

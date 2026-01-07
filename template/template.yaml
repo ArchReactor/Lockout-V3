@@ -1,11 +1,11 @@
 esphome:
   name: $name
-  platform: ESP8266
-  board: nodemcu
-
   on_boot:
       then:
           - script.execute: turn_off
+
+esp8266:
+  board: nodemcu
 
 api:
   #reboot_timeout: 0s
@@ -116,6 +116,8 @@ script:
 
           if (!found) {
             ESP_LOGD("reader", "no allowed tags found matching %s", tag.c_str());
+            auto url = (std::string) "http://esphome.arsec.lan/rfid-fail.php?card=" + tag.c_str() + "&name=" + id(lockout_name).c_str();
+            id(http_queue).push_back(url);
           }
 
   - id: turn_on

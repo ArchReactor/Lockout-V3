@@ -3,10 +3,10 @@
 const _ = require('lodash');
 const YAML = require('yaml');
 const fs = require('fs');
-const got = require('got');
 const { Command } = require('commander');
 const { spawn } = require('child_process');
 const path = require('path');
+const civicrm = require('civicrm');
 
 const program = new Command();
 program.option('--initial', 'is this an initial creation, only write out template, do not do OTA');
@@ -36,7 +36,7 @@ const apipath = program.opts().path;
 const key = program.opts().key;
 const apiKey = program.opts().apiKey;
 const espKey = program.opts().espKey;
-const groupsString = program.opts().group;
+const groups = program.opts().group;
 const name = program.opts().name;
 const activeTime = parseInt(program.opts().activeTime, 10);
 const wifiName = program.opts().wifiName;

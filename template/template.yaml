@@ -93,6 +93,12 @@ script:
       tag: string
     then:
       - lambda: |-
+          if (tag.length() >= 8) {
+            tag = tag.substr(8);
+            if(tag.substr(0,1) == "0") {
+              tag = tag.substr(1);
+            }
+          }
           id(last_scanned_id) = tag;
           id(last_scanned_name) = "Not Allowed";
 

@@ -93,8 +93,8 @@ script:
       tag: string
     then:
       - lambda: |-
-          if (tag.length() >= 8) {
-            tag = tag.substr(8);
+          if (tag.length() > 8) {
+            tag = tag.substr(7);
             int i = 0;
             while(i < tag.length() && tag.substr(i, 1) == "0") {
               i++;

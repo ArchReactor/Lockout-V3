@@ -95,8 +95,14 @@ script:
       - lambda: |-
           if (tag.length() >= 8) {
             tag = tag.substr(8);
-            if(tag.substr(0,1) == "0") {
-              tag = tag.substr(1);
+            int i = 0;
+            while(i < tag.length() && tag.substr(i, 1) == "0") {
+              i++;
+            }
+            if(i == tag.length()) {
+              tag = "";
+            } else {
+              tag = tag.substr(i);
             }
           }
           id(last_scanned_id) = tag;
